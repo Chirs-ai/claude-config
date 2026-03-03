@@ -27,6 +27,21 @@ Write-Host "源目录: $ScriptDir"
 Write-Host "目标:   $ClaudeDir"
 Write-Host ""
 
+# ── 检查系统依赖（statusline.sh 备用脚本需要 jq 和 bc）──
+$missing = @()
+if (-not (Get-Command jq -ErrorAction SilentlyContinue)) { $missing += "jq" }
+if (-not (Get-Command bc -ErrorAction SilentlyContinue)) { $missing += "bc" }
+
+if ($missing.Count -eq 0) {
+    Write-Host "[=] 系统依赖已就绪 (jq, bc)" -ForegroundColor DarkGray
+} else {
+    Write-Host "[!] 备用状态栏脚本 statusline.sh 需要: $($missing -join ', ')" -ForegroundColor Yellow
+    if ($Platform -eq "Windows") {
+        Write-Host "    可通过 winget / scoop / chocolatey 安装，或忽略（主状态栏 ccstatusline 不依赖这些）"
+    }
+}
+Write-Host ""
+
 # ── 创建目标目录 ──
 if (-not (Test-Path $ClaudeDir)) {
     Write-Host "创建 $ClaudeDir ..."

@@ -46,6 +46,60 @@ echo "源目录: $SCRIPT_DIR"
 echo "目标:   $CLAUDE_DIR"
 echo ""
 
+# ── 检查并安装系统依赖 ──
+install_deps() {
+    local missing=()
+    command -v jq  > /dev/null 2>&1 || missing+=(jq)
+    command -v bc  > /dev/null 2>&1 || missing+=(bc)
+
+    if [ ${#missing[@]} -eq 0 ]; then
+        echo "[=] 系统依赖已就绪 (jq, bc)"
+        return
+    fi
+
+    echo "缺少依赖: ${missing[*]}"
+
+    case "$PLATFORM" in
+        Linux|WSL)
+            if command -v apt-get > /dev/null 2>&1; then
+                echo "通过 apt 安装 ${missing[*]} ..."
+                sudo apt-get update -qq && sudo apt-get install -y -qq "${missing[@]}"
+            elif command -v yum > /dev/null 2>&1; then
+                echo "通过 yum 安装 ${missing[*]} ..."
+                sudo yum install -y "${missing[@]}"
+            else
+                echo "[!] 无法自动安装，请手动安装: ${missing[*]}"
+                return 1
+            fi
+            ;;
+        macOS)
+            if command -v brew > /dev/null 2>&1; then
+                echo "通过 brew 安装 ${missing[*]} ..."
+                brew install "${missing[@]}"
+            else
+                echo "[!] 未检测到 Homebrew，请先安装: https://brew.sh"
+                echo "    然后运行: brew install ${missing[*]}"
+                return 1
+            fi
+            ;;
+        "Windows (Git Bash)")
+            echo "[!] Git Bash 下请手动安装缺少的工具:"
+            for dep in "${missing[@]}"; do
+                case "$dep" in
+                    jq) echo "    jq: https://jqlang.github.io/jq/download/" ;;
+                    bc) echo "    bc: pacman -S bc (若使用 MSYS2)" ;;
+                esac
+            done
+            return 1
+            ;;
+    esac
+
+    echo "[+] 依赖安装完成 (${missing[*]})"
+}
+
+install_deps || true
+echo ""
+
 # ── 创建目标目录 ──
 if [ ! -d "$CLAUDE_DIR" ]; then
     echo "创建 $CLAUDE_DIR ..."

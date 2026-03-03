@@ -11,6 +11,7 @@ claude-config/
 ├── statusline.sh          # 自定义状态栏脚本（部署到 ~/.claude/statusline.sh）
 ├── commands/              # 自定义斜杠命令（部署到 ~/.claude/commands/）
 │   └── gitpush.md         #   /gitpush - 一键 commit + push
+├── .gitattributes         # 跨平台换行符控制（.sh 强制 LF）
 ├── deploy.sh              # 部署脚本 - Linux / macOS / Git Bash / WSL
 ├── deploy.ps1             # 部署脚本 - PowerShell (Windows / macOS / Linux)
 ├── deploy.bat             # 部署入口 - Windows 双击运行
@@ -23,6 +24,20 @@ claude-config/
 
 - 已安装 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)（`npm install -g @anthropic-ai/claude-code`）
 - Git
+- Node.js / npm（部署脚本会自动安装 `ccstatusline`）
+
+### 系统依赖（部署脚本自动处理）
+
+备用状态栏脚本 `statusline.sh` 依赖 `jq` 和 `bc`，部署脚本会自动检测并安装：
+
+| 平台 | 自动安装方式 |
+|------|-------------|
+| **Ubuntu / Debian** | `sudo apt-get install jq bc` |
+| **CentOS / RHEL** | `sudo yum install jq bc` |
+| **macOS** | `brew install jq bc`（需先装 [Homebrew](https://brew.sh)） |
+| **Windows** | 主状态栏 `ccstatusline` 不依赖这些，可忽略 |
+
+> 如果不使用备用 `statusline.sh`，缺少 `jq`/`bc` 不影响其他功能。
 
 ### 各平台部署方式
 
