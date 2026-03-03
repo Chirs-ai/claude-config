@@ -58,6 +58,7 @@ function Deploy-File {
 # ── 部署配置文件 ──
 Deploy-File (Join-Path $ScriptDir "CLAUDE.md") (Join-Path $ClaudeDir "CLAUDE.md") "CLAUDE.md"
 Deploy-File (Join-Path $ScriptDir "settings.json") (Join-Path $ClaudeDir "settings.json") "settings.json"
+Deploy-File (Join-Path $ScriptDir "statusline.sh") (Join-Path $ClaudeDir "statusline.sh") "statusline.sh"
 
 # ── 部署 commands/ ──
 $CmdDstDir = Join-Path $ClaudeDir "commands"
@@ -71,10 +72,34 @@ Get-ChildItem -Path $CmdSrcDir -Filter "*.md" -ErrorAction SilentlyContinue | Fo
     Deploy-File $_.FullName $dstFile "commands/$($_.Name)"
 }
 
+# ── 安装 ccstatusline ──
+Write-Host ""
+$npmPath = Get-Command npm -ErrorAction SilentlyContinue
+if ($npmPath) {
+    $installed = npm list -g ccstatusline 2>&1
+    if ($installed -match "ccstatusline@") {
+        $ver = ($installed | Select-String "ccstatusline@(.+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }).Trim()
+        Write-Host "[=] ccstatusline 已安装 (v$ver)" -ForegroundColor DarkGray
+    } else {
+        Write-Host "安装 ccstatusline ..."
+        try {
+            npm install -g ccstatusline 2>&1 | Out-Null
+            Write-Host "[+] ccstatusline" -ForegroundColor Green
+        } catch {
+            Write-Host "[!] ccstatusline 安装失败，settings.json 中的 npx 会在首次使用时自动下载" -ForegroundColor Yellow
+        }
+    }
+} else {
+    Write-Host "[!] 未检测到 npm，跳过 ccstatusline 安装" -ForegroundColor Yellow
+    Write-Host "    请先安装 Node.js，或后续通过 npx 自动下载"
+}
+
 Write-Host ""
 Write-Host "=== 部署完成 ===" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "已部署的配置:"
 Write-Host "  CLAUDE.md        - 全局指令 (Git commit 规范、Devlog 开发日志规范)"
 Write-Host "  settings.json    - 状态栏、权限设置"
+Write-Host "  statusline.sh    - 自定义状态栏脚本 (备用)"
 Write-Host "  commands/        - 自定义命令 (gitpush 等)"
+Write-Host "  ccstatusline     - npm 状态栏工具"

@@ -73,6 +73,7 @@ deploy_file() {
 # ── 部署配置文件 ──
 deploy_file "$SCRIPT_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md" "CLAUDE.md"
 deploy_file "$SCRIPT_DIR/settings.json" "$CLAUDE_DIR/settings.json" "settings.json"
+deploy_file "$SCRIPT_DIR/statusline.sh" "$CLAUDE_DIR/statusline.sh" "statusline.sh"
 
 # ── 部署 commands/ ──
 mkdir -p "$CLAUDE_DIR/commands"
@@ -82,10 +83,26 @@ for cmd_file in "$SCRIPT_DIR/commands"/*.md; do
     deploy_file "$cmd_file" "$CLAUDE_DIR/commands/$filename" "commands/$filename"
 done
 
+# ── 安装 ccstatusline ──
+echo ""
+if command -v npm > /dev/null 2>&1; then
+    if npm list -g ccstatusline > /dev/null 2>&1; then
+        echo "[=] ccstatusline 已安装 ($(npm list -g ccstatusline 2>/dev/null | grep ccstatusline | sed 's/.*@/v/'))"
+    else
+        echo "安装 ccstatusline ..."
+        npm install -g ccstatusline && echo "[+] ccstatusline" || echo "[!] ccstatusline 安装失败，settings.json 中的 npx 会在首次使用时自动下载"
+    fi
+else
+    echo "[!] 未检测到 npm，跳过 ccstatusline 安装"
+    echo "    请先安装 Node.js，或后续通过 npx 自动下载"
+fi
+
 echo ""
 echo "=== 部署完成 ==="
 echo ""
 echo "已部署的配置:"
 echo "  CLAUDE.md        - 全局指令 (Git commit 规范、Devlog 开发日志规范)"
 echo "  settings.json    - 状态栏、权限设置"
+echo "  statusline.sh    - 自定义状态栏脚本 (备用)"
 echo "  commands/        - 自定义命令 (gitpush 等)"
+echo "  ccstatusline     - npm 状态栏工具"

@@ -8,6 +8,7 @@
 claude-config/
 ├── CLAUDE.md              # 全局指令（部署到 ~/.claude/CLAUDE.md）
 ├── settings.json          # Claude Code 设置（部署到 ~/.claude/settings.json）
+├── statusline.sh          # 自定义状态栏脚本（部署到 ~/.claude/statusline.sh）
 ├── commands/              # 自定义斜杠命令（部署到 ~/.claude/commands/）
 │   └── gitpush.md         #   /gitpush - 一键 commit + push
 ├── deploy.sh              # 部署脚本 - Linux / macOS / Git Bash / WSL
@@ -45,6 +46,7 @@ cd claude-config
 - 配置文件复制到 `~/.claude/` 目录（Windows 上为 `%USERPROFILE%\.claude\`）
 - 已有同名文件自动备份为 `.bak`，不会丢失原有配置
 - 内容无变化的文件自动跳过，不重复覆盖
+- 自动检测并安装 `ccstatusline` npm 包（需要 Node.js）
 
 ### 部署输出示例
 
@@ -56,7 +58,10 @@ cd claude-config
 
 [+] CLAUDE.md
 [=] settings.json (无变化，跳过)
+[+] statusline.sh
 [+] commands/gitpush.md
+
+[=] ccstatusline 已安装 (v2.0.23)
 
 === 部署完成 ===
 ```
@@ -79,6 +84,24 @@ cd claude-config
 |--------|-----|------|
 | `statusLine` | `ccstatusline` | 终端状态栏显示 Git 分支、token 用量等信息 |
 | `skipDangerousModePermissionPrompt` | `true` | 跳过危险模式的二次确认弹窗 |
+
+### 状态栏 (statusline)
+
+部署脚本会自动处理两层保障：
+
+1. **`ccstatusline` npm 包**（主要）：全局安装，`settings.json` 中通过 `npx -y ccstatusline@latest` 调用，显示模型名称、token 用量、费用、上下文占比等信息
+2. **`statusline.sh` 脚本**（备用）：自定义 bash 脚本，可在 `settings.json` 中切换使用
+
+如需切换到备用脚本，修改 `settings.json`：
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline.sh"
+  }
+}
+```
 
 ### commands/gitpush.md — 自定义命令
 
