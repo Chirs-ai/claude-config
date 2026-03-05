@@ -12,8 +12,12 @@ claude-config/
 ├── commands/              # 自定义斜杠命令（部署到 ~/.claude/commands/）
 │   ├── gitpush.md         #   /gitpush - 一键 commit + push
 │   ├── deploy.md          #   /deploy  - 一键部署到远程服务器
+│   ├── deploy-init.md     #   /deploy-init - 初始化项目部署配置
 │   ├── regression-check.md #  /regression-check - 回归验证
 │   └── save-devlog.md     #   /save-devlog - 保存开发日志
+├── templates/             # 部署模板（部署到 ~/.claude/templates/）
+│   ├── server.secret.template  # 服务器连接信息模板
+│   └── run.sh.template         # 服务管理脚本模板
 ├── .gitattributes         # 跨平台换行符控制（.sh 强制 LF）
 ├── deploy.sh              # 部署脚本 - Linux / macOS / Git Bash / WSL
 ├── deploy.ps1             # 部署脚本 - PowerShell (Windows / macOS / Linux)
@@ -208,6 +212,68 @@ vim run.sh
 - `.server.secret` 不入 Git 仓库，仅存在于本地开发机
 - SSH 私钥仅在部署期间写入 `/tmp`，使用后立即删除
 - 迁移到新机器时，需手动将 `.server.secret` 复制到各项目目录
+
+#### /deploy-init — 初始化项目部署配置
+
+在 Claude Code 中输入 `/deploy-init` 触发，为当前项目生成部署所需的配置文件。
+
+**工作流程：**
+
+1. 检查项目中是否已存在 `.server.secret` 和 `run.sh`，已存在则跳过
+2. 从 `~/.claude/templates/` 读取模板，生成 `.server.secret` 和 `run.sh`
+3. 交互式询问项目配置（入口文件名、环境类型、环境名称）
+4. 自动更新 `.gitignore`（添加 `.server.secret`、`app.log`、`app.pid`）
+5. 提示用户编辑 `.server.secret` 填入实际服务器信息
+
+**新项目完整接入流程：**
+
+```bash
+# 第 1 步：初始化配置（交互式，自动生成 .server.secret + run.sh）
+/deploy-init
+
+# 第 2 步：编辑 .server.secret，填入服务器 IP、用户名、SSH 私钥
+vim .server.secret
+
+# 第 3 步：一键部署
+/deploy
+```
+
+### templates/ — 部署模板
+
+模板文件部署到 `~/.claude/templates/`，供 `/deploy-init` 命令使用。
+
+#### server.secret.template
+
+服务器连接信息模板，定义了 `.server.secret` 的标准格式：
+
+```
+server ip:
+<IP地址>
+<SSH用户名>
+
+privatekey:
+-----BEGIN RSA PRIVATE KEY-----
+<私钥内容>
+-----END RSA PRIVATE KEY-----
+```
+
+#### run.sh.template
+
+通用服务管理脚本模板，顶部配置区支持自定义：
+
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
+| `APP_ENTRY` | 应用入口文件 | `app.py` |
+| `ENV_TYPE` | 环境类型 | `conda`（可选 `venv`） |
+| `CONDA_ENV` | conda 环境名 | `py312` |
+| `VENV_DIR` | venv 目录名 | `venv` |
+
+脚本实现了统一的子命令接口（`start/stop/restart/status/logs`），同时包含：
+- conda / venv 双环境自动激活
+- PID 文件精确进程管理
+- 重复启动保护
+- 启动后自动验证
+- 日志追加模式（不丢失历史）
 
 ## 维护与同步
 

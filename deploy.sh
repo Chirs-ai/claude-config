@@ -137,6 +137,14 @@ for cmd_file in "$SCRIPT_DIR/commands"/*.md; do
     deploy_file "$cmd_file" "$CLAUDE_DIR/commands/$filename" "commands/$filename"
 done
 
+# ── 部署 templates/ ──
+mkdir -p "$CLAUDE_DIR/templates"
+for tpl_file in "$SCRIPT_DIR/templates"/*; do
+    [ -f "$tpl_file" ] || continue
+    filename="$(basename "$tpl_file")"
+    deploy_file "$tpl_file" "$CLAUDE_DIR/templates/$filename" "templates/$filename"
+done
+
 # ── 安装 ccstatusline ──
 echo ""
 if command -v npm > /dev/null 2>&1; then
@@ -158,5 +166,6 @@ echo "已部署的配置:"
 echo "  CLAUDE.md        - 全局指令 (Git commit 规范、Devlog 开发日志规范)"
 echo "  settings.json    - 状态栏、权限设置"
 echo "  statusline.sh    - 自定义状态栏脚本 (备用)"
-echo "  commands/        - 自定义命令 (gitpush 等)"
+echo "  commands/        - 自定义命令 (gitpush, deploy, deploy-init 等)"
+echo "  templates/       - 部署模板 (server.secret, run.sh)"
 echo "  ccstatusline     - npm 状态栏工具"
