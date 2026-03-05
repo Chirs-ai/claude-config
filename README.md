@@ -142,16 +142,16 @@ cd claude-config
 **工作流程：**
 
 ```
-前置检查 → SSH 连接 → git pull → 重启服务 → 验证状态 → 清理
+前置检查 → SSH 连接 → 检测目录 → git pull / clone → 重启服务 → 验证状态 → 清理
 ```
 
-1. 读取项目根目录的 `.server.secret` 获取服务器连接信息
+1. 读取项目根目录的 `.server.secret` 获取服务器 IP、用户名、部署路径
 2. 读取私钥到临时文件并设置权限
-3. SSH 到服务器执行 `git pull` 拉取最新代码
-4. 执行 `./run.sh restart` 重启服务
-5. 执行 `./run.sh status` 验证部署结果
-6. 删除临时密钥文件
-7. 向用户报告部署结果
+3. SSH 到服务器检查部署目录是否存在：
+   - **已存在** → `git pull` → `./run.sh restart` → `./run.sh status`
+   - **不存在** → 自动 `git clone`（从本地 git remote 获取 URL）→ 提示用户完成首次环境配置
+4. 删除临时密钥文件
+5. 向用户报告部署结果
 
 **业务项目接入要求：**
 
@@ -167,12 +167,24 @@ server ip:
 root
 
 
+deploy path:
+
+/opt/my-project
+
+
 privatekey:
 
 -----BEGIN RSA PRIVATE KEY-----
 <私钥内容>
 -----END RSA PRIVATE KEY-----
 ```
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| server ip | 是 | 服务器 IP 地址或域名 |
+| 用户名 | 是 | SSH 登录用户名（紧跟在 IP 下方） |
+| deploy path | 否 | 服务器上的部署路径，默认 `~/<本地项目目录名>` |
+| privatekey | 是 | SSH 私钥 |
 
 **2. `run.sh`** — 服务管理脚本，至少支持以下子命令：
 
@@ -191,19 +203,25 @@ privatekey:
 .server.secret
 ```
 
-**接入示例（以新项目为例）：**
+**新项目接入（推荐使用 /deploy-init）：**
 
 ```bash
-# 1. 创建服务器连接信息（一次性）
+# 第 1 步：交互式生成 .server.secret + run.sh（自动更新 .gitignore）
+/deploy-init
+
+# 第 2 步：编辑 .server.secret，粘贴 SSH 私钥
 vim .server.secret
 
-# 2. 确保 .gitignore 包含 .server.secret
+# 第 3 步：一键部署（首次自动 git clone，后续自动 git pull + restart）
+/deploy
+```
+
+**手动接入（不使用 /deploy-init）：**
+
+```bash
+vim .server.secret          # 按模板格式填写
+vim run.sh                  # 从 ~/.claude/templates/run.sh.template 复制修改
 echo ".server.secret" >> .gitignore
-
-# 3. 创建 run.sh（根据项目环境定制）
-vim run.sh
-
-# 4. 在 Claude Code 对话中一键部署
 /deploy
 ```
 
@@ -220,10 +238,11 @@ vim run.sh
 **工作流程：**
 
 1. 检查项目中是否已存在 `.server.secret` 和 `run.sh`，已存在则跳过
-2. 从 `~/.claude/templates/` 读取模板，生成 `.server.secret` 和 `run.sh`
-3. 交互式询问项目配置（入口文件名、环境类型、环境名称）
-4. 自动更新 `.gitignore`（添加 `.server.secret`、`app.log`、`app.pid`）
-5. 提示用户编辑 `.server.secret` 填入实际服务器信息
+2. 从 `~/.claude/templates/` 读取模板，交互式询问配置：
+   - 服务器 IP、用户名、部署路径 → 生成 `.server.secret`
+   - 入口文件名、环境类型、环境名称 → 生成 `run.sh`
+3. 自动更新 `.gitignore`（添加 `.server.secret`、`app.log`、`app.pid`）
+4. 提示用户编辑 `.server.secret` 粘贴 SSH 私钥
 
 **新项目完整接入流程：**
 
@@ -244,18 +263,7 @@ vim .server.secret
 
 #### server.secret.template
 
-服务器连接信息模板，定义了 `.server.secret` 的标准格式：
-
-```
-server ip:
-<IP地址>
-<SSH用户名>
-
-privatekey:
------BEGIN RSA PRIVATE KEY-----
-<私钥内容>
------END RSA PRIVATE KEY-----
-```
+服务器连接信息模板，定义了 `.server.secret` 的标准格式（含可选的 `deploy path` 字段）。用户只需替换尖括号内的占位符。
 
 #### run.sh.template
 

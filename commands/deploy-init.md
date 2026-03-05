@@ -7,8 +7,12 @@
 2. **创建 `.server.secret`**（如不存在）：
    - 从 `~/.claude/templates/server.secret.template`（或 `~/projects/claude-config/templates/server.secret.template`）读取模板
    - 如果模板也不存在，使用内置的默认格式
-   - 将模板复制到项目根目录的 `.server.secret`
-   - 提示用户编辑填入实际的服务器 IP、用户名和 SSH 私钥
+   - 询问用户以下配置项：
+     - 服务器 IP 地址
+     - SSH 用户名（默认 root）
+     - 服务器上的部署路径（默认 `~/<当前项目目录名>`，可自定义如 `/opt/my-app`）
+   - 根据用户回答填充模板，写入项目根目录的 `.server.secret`
+   - 提示用户还需要手动粘贴 SSH 私钥到文件中
 
 3. **创建 `run.sh`**（如不存在）：
    - 从 `~/.claude/templates/run.sh.template`（或 `~/projects/claude-config/templates/run.sh.template`）读取模板
@@ -26,5 +30,6 @@
 
 5. **报告结果**：
    - 列出创建/跳过的文件
-   - 提醒用户编辑 `.server.secret` 填入服务器信息
+   - 提醒用户编辑 `.server.secret` 粘贴 SSH 私钥
    - 告知用户完成配置后可使用 `/deploy` 一键部署
+   - 如果是首次部署（服务器上尚无代码），`/deploy` 会自动在服务器上执行 `git clone`
