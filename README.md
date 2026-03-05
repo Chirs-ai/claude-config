@@ -272,6 +272,7 @@ vim .server.secret
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
 | `APP_ENTRY` | 应用入口文件 | `app.py` |
+| `APP_PORT` | 服务端口 | 留空则使用应用默认端口 |
 | `ENV_TYPE` | 环境类型 | `conda`（可选 `venv`） |
 | `CONDA_ENV` | conda 环境名 | `py312` |
 | `VENV_DIR` | venv 目录名 | `venv` |

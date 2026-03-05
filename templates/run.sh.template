@@ -13,6 +13,9 @@
 # 启动命令：替换为你的应用入口文件
 APP_ENTRY="app.py"
 
+# 服务端口（留空则使用应用默认端口）
+APP_PORT=""
+
 # Python 环境类型：conda 或 venv
 ENV_TYPE="conda"
 
@@ -89,6 +92,11 @@ do_start() {
     fi
     ensure_env
     cd "$APP_DIR"
+    # 如果配置了端口，通过环境变量传递给应用
+    if [ -n "$APP_PORT" ]; then
+        export APP_PORT
+        info "服务端口: $APP_PORT"
+    fi
     nohup python "$APP_ENTRY" >> "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     sleep 2
