@@ -10,7 +10,10 @@ claude-config/
 ├── settings.json          # Claude Code 设置（部署到 ~/.claude/settings.json）
 ├── statusline.sh          # 自定义状态栏脚本（部署到 ~/.claude/statusline.sh）
 ├── commands/              # 自定义斜杠命令（部署到 ~/.claude/commands/）
-│   └── gitpush.md         #   /gitpush - 一键 commit + push
+│   ├── gitpush.md         #   /gitpush - 一键 commit + push
+│   ├── deploy.md          #   /deploy  - 一键部署到远程服务器
+│   ├── regression-check.md #  /regression-check - 回归验证
+│   └── save-devlog.md     #   /save-devlog - 保存开发日志
 ├── .gitattributes         # 跨平台换行符控制（.sh 强制 LF）
 ├── deploy.sh              # 部署脚本 - Linux / macOS / Git Bash / WSL
 ├── deploy.ps1             # 部署脚本 - PowerShell (Windows / macOS / Linux)
@@ -118,13 +121,93 @@ cd claude-config
 }
 ```
 
-### commands/gitpush.md — 自定义命令
+### commands/ — 自定义命令
+
+#### /gitpush — 一键提交推送
 
 在 Claude Code 中输入 `/gitpush` 触发，自动执行：
 
 1. `git status` + `git diff` 检查变更
 2. 参考项目历史风格生成 commit message
 3. `git add -A` → `git commit` → `git push`
+
+#### /deploy — 一键部署到远程服务器
+
+在 Claude Code 中输入 `/deploy` 触发，自动完成远程服务器部署。
+
+**工作流程：**
+
+```
+前置检查 → SSH 连接 → git pull → 重启服务 → 验证状态 → 清理
+```
+
+1. 读取项目根目录的 `.server.secret` 获取服务器连接信息
+2. 读取私钥到临时文件并设置权限
+3. SSH 到服务器执行 `git pull` 拉取最新代码
+4. 执行 `./run.sh restart` 重启服务
+5. 执行 `./run.sh status` 验证部署结果
+6. 删除临时密钥文件
+7. 向用户报告部署结果
+
+**业务项目接入要求：**
+
+每个需要远程部署的项目，只需在项目根目录准备两个文件：
+
+**1. `.server.secret`** — 服务器连接信息（必须加入 `.gitignore`）
+
+```
+server ip:
+
+192.168.1.100
+
+root
+
+
+privatekey:
+
+-----BEGIN RSA PRIVATE KEY-----
+<私钥内容>
+-----END RSA PRIVATE KEY-----
+```
+
+**2. `run.sh`** — 服务管理脚本，至少支持以下子命令：
+
+| 子命令 | 说明 |
+|--------|------|
+| `start` | 启动服务 |
+| `stop` | 停止服务 |
+| `restart` | 重启服务 |
+| `status` | 查看运行状态 |
+
+`run.sh` 的具体实现因项目而异（conda/venv/docker/直接运行等），只需遵循统一的子命令接口即可。
+
+**3. `.gitignore`** — 确保包含 `.server.secret`
+
+```gitignore
+.server.secret
+```
+
+**接入示例（以新项目为例）：**
+
+```bash
+# 1. 创建服务器连接信息（一次性）
+vim .server.secret
+
+# 2. 确保 .gitignore 包含 .server.secret
+echo ".server.secret" >> .gitignore
+
+# 3. 创建 run.sh（根据项目环境定制）
+vim run.sh
+
+# 4. 在 Claude Code 对话中一键部署
+/deploy
+```
+
+**安全设计：**
+
+- `.server.secret` 不入 Git 仓库，仅存在于本地开发机
+- SSH 私钥仅在部署期间写入 `/tmp`，使用后立即删除
+- 迁移到新机器时，需手动将 `.server.secret` 复制到各项目目录
 
 ## 维护与同步
 
