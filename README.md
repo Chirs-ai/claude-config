@@ -14,7 +14,8 @@ claude-config/
 │   ├── deploy.md          #   /deploy  - 一键部署到远程服务器
 │   ├── deploy-init.md     #   /deploy-init - 初始化项目部署配置
 │   ├── regression-check.md #  /regression-check - 回归验证
-│   └── save-devlog.md     #   /save-devlog - 保存开发日志
+│   ├── save-devlog.md     #   /save-devlog - 保存开发日志
+│   └── socratic-writing.md #  /socratic-writing - 苏格拉底式文章创作
 ├── templates/             # 部署模板（部署到 ~/.claude/templates/）
 │   ├── server.secret.template  # 服务器连接信息模板
 │   └── run.sh.template         # 服务管理脚本模板
@@ -256,6 +257,36 @@ vim .server.secret
 # 第 3 步：一键部署
 /deploy
 ```
+
+#### /socratic-writing — 苏格拉底式文章创作
+
+在 Claude Code 中输入 `/socratic-writing` 触发，用一问一答的方式引导用户把经历和洞见挖成一篇完整文章（默认公众号风格），而不是让用户直接提供素材。
+
+**两种使用方式：**
+
+```bash
+# 方式 1：从零开始（空白会话）
+/socratic-writing
+# → Claude 从"你最想让读者带走什么"开始问，逐步挖出骨架、素材、初稿
+
+# 方式 2：基于本次会话历史作为背景（推荐）
+# 先和 Claude 进行了技术讨论、决策分析、踩坑复盘后
+/socratic-writing
+# → Claude 先扫描本次会话历史，抽取可能的写作方向和原话片段，
+#   向用户呈现 2-4 个候选方向，确认后基于真实素材继续追问深挖
+
+# 方式 3：带话题提示
+/socratic-writing AI 数据治理
+# → Claude 在历史中优先筛选与该话题相关的片段作为候选素材，
+#   若历史无相关内容则回退到纯苏格拉底模式围绕该话题提问
+```
+
+**核心约束（命令内部已硬约束）：**
+
+- **不虚构**：只使用用户在会话中真实说过的内容，绝不编造场景、情绪、数字
+- **保留原话**：引用用户说过的话时逐字保留，不改写
+- **可回退**：用户否定历史观察方向时立即切回纯苏格拉底模式
+- **只问一个**：任何时候只问一个最重要的问题，问完即等
 
 ### templates/ — 部署模板
 
