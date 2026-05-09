@@ -1,0 +1,4 @@
+interface:
+  display_name: "Audit"
+  short_description: "Audit repository risks"
+  default_prompt: "Use $audit to inspect the repository and report concrete risks."

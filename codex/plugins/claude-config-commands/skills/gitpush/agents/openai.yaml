@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gitpush"
+  short_description: "Commit and push changes"
+  default_prompt: "Use $gitpush to inspect changes, commit them, and push the branch."

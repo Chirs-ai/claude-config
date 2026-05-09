@@ -89,6 +89,48 @@ cd claude-config
 === 部署完成 ===
 ```
 
+## Codex 兼容
+
+Codex 0.129.0 当前不支持像 Claude Code 一样从本地 Markdown 暴露自定义 `/gitpush` 斜杠命令。本仓库采用 Codex 插件 + Skills 方案：安装后在 Codex 输入框按 `$` 选择对应 skill，或直接用自然语言点名 `$gitpush`、`$deploy` 等工作流。
+
+```text
+codex/
+├── prompts/                         # 保留 Codex prompt 版本，当前 CLI 不会暴露为 slash 命令
+├── .agents/plugins/marketplace.json # Codex 本地 marketplace 入口
+└── plugins/claude-config-commands/  # Codex 插件形式的 workflow 集合
+    ├── .codex-plugin/plugin.json
+    ├── commands/                    # 原始 workflow 正文
+    └── skills/                      # Codex 可识别的 Skill 入口
+```
+
+部署脚本会额外执行：
+
+- 将 `templates/` 复制到 `~/.codex/templates/`，供 Codex 版部署命令读取
+- 将 workflow 正文复制到 `~/.codex/commands/`
+- 将 Codex 原生 skill 入口复制到 `~/.codex/skills/`，供 `$gitpush` 这类补全直接发现
+- 注册本地 marketplace：`codex plugin marketplace add <repo>/codex`
+- 同步插件到 Codex 实际加载目录：`~/.codex/plugins/cache/claude-config/claude-config-commands`
+- 启用插件：`[plugins."claude-config-commands@claude-config"] enabled = true`
+
+安装后重启 Codex，输入 `$` 选择 skill，或在消息中明确点名：
+
+```text
+$gitpush
+$deploy-init
+$deploy
+$audit
+$regression-check
+$socratic-writing
+```
+
+只安装/更新 Codex 侧配置，不触碰 Claude Code 配置：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy.ps1 -CodexOnly
+```
+
+Codex 版 workflow 正文与 Claude 版保持同一语义；区别是 Codex 当前通过 Skills 触发，而不是通过自定义 `/...` 斜杠命令触发。
+
 ## 配置说明
 
 ### CLAUDE.md — 全局指令

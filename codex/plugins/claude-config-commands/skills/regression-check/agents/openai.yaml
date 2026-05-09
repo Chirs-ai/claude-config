@@ -1,0 +1,4 @@
+interface:
+  display_name: "Regression Check"
+  short_description: "Verify recent changes"
+  default_prompt: "Use $regression-check to run focused verification for recent changes."

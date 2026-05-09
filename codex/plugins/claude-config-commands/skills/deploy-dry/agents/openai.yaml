@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deploy Dry"
+  short_description: "Dry-run remote deploy"
+  default_prompt: "Use $deploy-dry to validate deployment without restarting production."

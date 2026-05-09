@@ -1,0 +1,4 @@
+interface:
+  display_name: "Socratic Writing"
+  short_description: "Guide reflective writing"
+  default_prompt: "Use $socratic-writing to guide a one-question-at-a-time writing session."

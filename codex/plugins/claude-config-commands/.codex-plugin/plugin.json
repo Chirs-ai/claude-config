@@ -1,0 +1,40 @@
+{
+  "name": "claude-config-commands",
+  "version": "0.1.0",
+  "description": "Personal workflow slash commands ported from Claude Code for Codex.",
+  "author": {
+    "name": "Claude Config"
+  },
+  "homepage": "https://github.com/",
+  "repository": "https://github.com/",
+  "license": "MIT",
+  "skills": "./skills/",
+  "keywords": [
+    "codex",
+    "slash-commands",
+    "workflow",
+    "deployment"
+  ],
+  "interface": {
+    "displayName": "Claude Config Commands",
+    "shortDescription": "Personal slash commands for Git, deploy, audit, devlog, and writing workflows.",
+    "longDescription": "Codex-compatible versions of the personal Claude Code commands in this repository, preserving the same workflow semantics for Git push, remote deploy, deploy initialization, regression checks, audits, devlog capture, feature work, and Socratic writing.",
+    "developerName": "Claude Config",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/",
+    "privacyPolicyURL": "https://github.com/site/privacy",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "defaultPrompt": [
+      "Use $gitpush to commit and push the current project.",
+      "Use $deploy-init then $deploy to set up remote deployment.",
+      "Use $regression-check to verify recent changes."
+    ],
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

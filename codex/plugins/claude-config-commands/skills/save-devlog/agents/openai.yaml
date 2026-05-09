@@ -1,0 +1,4 @@
+interface:
+  display_name: "Save Devlog"
+  short_description: "Write development log"
+  default_prompt: "Use $save-devlog to record the current work in a devlog entry."

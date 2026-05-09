@@ -1,54 +1,49 @@
 #
-# Claude Code 配置一键部署脚本 (PowerShell)
-# 用法: powershell -ExecutionPolicy Bypass -File deploy.ps1
+# Claude Code / Codex local config installer (PowerShell)
+# Usage: powershell -ExecutionPolicy Bypass -File deploy.ps1
 #
-# 支持: Windows PowerShell 5.1+ / PowerShell Core 7+ (Windows/macOS/Linux)
+# Supports: Windows PowerShell 5.1+ / PowerShell 7+
 #
+
+param(
+    [switch]$CodexOnly
+)
 
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
-# ── 检测平台与 Claude 配置目录 ──
 if ($IsLinux) {
     $Platform = "Linux"
-    $ClaudeDir = Join-Path $env:HOME ".claude"
+    $HomeDir = $env:HOME
 } elseif ($IsMacOS) {
     $Platform = "macOS"
-    $ClaudeDir = Join-Path $env:HOME ".claude"
+    $HomeDir = $env:HOME
 } else {
     $Platform = "Windows"
-    $ClaudeDir = Join-Path $env:USERPROFILE ".claude"
+    $HomeDir = $env:USERPROFILE
 }
 
-Write-Host "=== Claude Code 配置部署 ===" -ForegroundColor Cyan
-Write-Host "平台:   $Platform"
-Write-Host "源目录: $ScriptDir"
-Write-Host "目标:   $ClaudeDir"
+$ClaudeDir = Join-Path $HomeDir ".claude"
+$CodexDir = Join-Path $HomeDir ".codex"
+
+Write-Host "=== Claude Code / Codex config deploy ===" -ForegroundColor Cyan
+Write-Host "Platform:      $Platform"
+Write-Host "Source:        $ScriptDir"
+Write-Host "Codex target:  $CodexDir"
+if (-not $CodexOnly) {
+    Write-Host "Claude target: $ClaudeDir"
+}
 Write-Host ""
 
-# ── 检查系统依赖（statusline.sh 备用脚本需要 jq 和 bc）──
-$missing = @()
-if (-not (Get-Command jq -ErrorAction SilentlyContinue)) { $missing += "jq" }
-if (-not (Get-Command bc -ErrorAction SilentlyContinue)) { $missing += "bc" }
+function Ensure-Dir {
+    param([string]$Path)
 
-if ($missing.Count -eq 0) {
-    Write-Host "[=] 系统依赖已就绪 (jq, bc)" -ForegroundColor DarkGray
-} else {
-    Write-Host "[!] 备用状态栏脚本 statusline.sh 需要: $($missing -join ', ')" -ForegroundColor Yellow
-    if ($Platform -eq "Windows") {
-        Write-Host "    可通过 winget / scoop / chocolatey 安装，或忽略（主状态栏 ccstatusline 不依赖这些）"
+    if (-not (Test-Path $Path)) {
+        New-Item -ItemType Directory -Path $Path -Force | Out-Null
     }
 }
-Write-Host ""
 
-# ── 创建目标目录 ──
-if (-not (Test-Path $ClaudeDir)) {
-    Write-Host "创建 $ClaudeDir ..."
-    New-Item -ItemType Directory -Path $ClaudeDir -Force | Out-Null
-}
-
-# ── 部署单个文件 ──
 function Deploy-File {
     param(
         [string]$Src,
@@ -56,65 +51,270 @@ function Deploy-File {
         [string]$Label
     )
 
+    if (-not (Test-Path $Src)) {
+        Write-Host "[!] Missing source: $Src" -ForegroundColor Yellow
+        return
+    }
+
+    Ensure-Dir (Split-Path -Parent $Dst)
+
     if (Test-Path $Dst) {
         $srcHash = (Get-FileHash $Src -Algorithm MD5).Hash
         $dstHash = (Get-FileHash $Dst -Algorithm MD5).Hash
         if ($srcHash -eq $dstHash) {
-            Write-Host "[=] $Label (无变化，跳过)" -ForegroundColor DarkGray
+            Write-Host "[=] $Label (unchanged)" -ForegroundColor DarkGray
             return
         }
-        Write-Host "[!] $Label 已存在，备份为 ${Label}.bak" -ForegroundColor Yellow
+
         Copy-Item $Dst "${Dst}.bak" -Force
+        Write-Host "[!] $Label exists; backed up to ${Dst}.bak" -ForegroundColor Yellow
     }
+
     Copy-Item $Src $Dst -Force
     Write-Host "[+] $Label" -ForegroundColor Green
 }
 
-# ── 部署配置文件 ──
-Deploy-File (Join-Path $ScriptDir "CLAUDE.md") (Join-Path $ClaudeDir "CLAUDE.md") "CLAUDE.md"
-Deploy-File (Join-Path $ScriptDir "settings.json") (Join-Path $ClaudeDir "settings.json") "settings.json"
-Deploy-File (Join-Path $ScriptDir "statusline.sh") (Join-Path $ClaudeDir "statusline.sh") "statusline.sh"
+function Invoke-CodexMarketplaceRegistration {
+    param([string]$MarketplaceRoot)
 
-# ── 部署 commands/ ──
-$CmdDstDir = Join-Path $ClaudeDir "commands"
-if (-not (Test-Path $CmdDstDir)) {
-    New-Item -ItemType Directory -Path $CmdDstDir -Force | Out-Null
+    $codexPath = Get-Command codex -ErrorAction SilentlyContinue
+    if (-not $codexPath) {
+        Write-Host "[!] codex CLI not found; skipped marketplace registration" -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host ""
+    Write-Host "Registering Codex local marketplace ..."
+
+    $addOutput = & codex plugin marketplace add $MarketplaceRoot 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[+] Codex marketplace: claude-config" -ForegroundColor Green
+        return
+    }
+
+    $upgradeOutput = & codex plugin marketplace upgrade claude-config 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[=] Codex marketplace: claude-config already registered; upgraded" -ForegroundColor DarkGray
+        return
+    }
+
+    Write-Host "[!] Codex marketplace registration failed" -ForegroundColor Yellow
+    if ($addOutput) {
+        Write-Host "    add output: $($addOutput -join ' ')"
+    }
+    if ($upgradeOutput) {
+        Write-Host "    upgrade output: $($upgradeOutput -join ' ')"
+    }
 }
 
-$CmdSrcDir = Join-Path $ScriptDir "commands"
-Get-ChildItem -Path $CmdSrcDir -Filter "*.md" -ErrorAction SilentlyContinue | ForEach-Object {
-    $dstFile = Join-Path $CmdDstDir $_.Name
-    Deploy-File $_.FullName $dstFile "commands/$($_.Name)"
-}
+function Enable-CodexPlugin {
+    param(
+        [string]$ConfigPath,
+        [string]$PluginRef
+    )
 
-# ── 安装 ccstatusline ──
-Write-Host ""
-$npmPath = Get-Command npm -ErrorAction SilentlyContinue
-if ($npmPath) {
-    $installed = npm list -g ccstatusline 2>&1
-    if ($installed -match "ccstatusline@") {
-        $ver = ($installed | Select-String "ccstatusline@(.+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }).Trim()
-        Write-Host "[=] ccstatusline 已安装 (v$ver)" -ForegroundColor DarkGray
+    Ensure-Dir (Split-Path -Parent $ConfigPath)
+    if (-not (Test-Path $ConfigPath)) {
+        New-Item -ItemType File -Path $ConfigPath -Force | Out-Null
+    }
+
+    $section = "[plugins.`"$PluginRef`"]"
+    $config = Get-Content -Raw -Encoding UTF8 $ConfigPath
+    if ($null -eq $config) {
+        $config = ""
+    }
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+    if ($config -notmatch [regex]::Escape($section)) {
+        if ($config.Length -gt 0 -and -not $config.EndsWith("`r`n") -and -not $config.EndsWith("`n")) {
+            $config += "`r`n"
+        }
+        $config += "`r`n$section`r`nenabled = true`r`n"
+        [System.IO.File]::WriteAllText($ConfigPath, $config, $utf8NoBom)
+        Write-Host "[+] Codex plugin enabled: $PluginRef" -ForegroundColor Green
+        return
+    }
+
+    $pattern = "(?ms)(^\[plugins\.`"$([regex]::Escape($PluginRef))`"\]\s*)(.*?)(?=^\[|\z)"
+    if ($config -notmatch $pattern) {
+        Write-Host "[!] Could not update Codex plugin section: $PluginRef" -ForegroundColor Yellow
+        return
+    }
+
+    $body = $Matches[2]
+    if ($body -match "(?m)^\s*enabled\s*=") {
+        $body = [regex]::Replace($body, "(?m)^\s*enabled\s*=.*$", "enabled = true", 1)
     } else {
-        Write-Host "安装 ccstatusline ..."
-        try {
-            npm install -g ccstatusline 2>&1 | Out-Null
-            Write-Host "[+] ccstatusline" -ForegroundColor Green
-        } catch {
-            Write-Host "[!] ccstatusline 安装失败，settings.json 中的 npx 会在首次使用时自动下载" -ForegroundColor Yellow
+        $body = "enabled = true`r`n$body"
+    }
+    $config = [regex]::Replace($config, $pattern, "`${1}$body", 1)
+    [System.IO.File]::WriteAllText($ConfigPath, $config, $utf8NoBom)
+
+    Write-Host "[=] Codex plugin enabled: $PluginRef" -ForegroundColor DarkGray
+}
+
+function Sync-CodexPluginCache {
+    param(
+        [string]$PluginSource,
+        [string]$CodexHome,
+        [string]$MarketplaceName,
+        [string]$PluginName
+    )
+
+    if (-not (Test-Path $PluginSource)) {
+        Write-Host "[!] Missing Codex plugin source: $PluginSource" -ForegroundColor Yellow
+        return
+    }
+
+    $cacheRoot = Join-Path $CodexHome "plugins\cache\$MarketplaceName"
+    $cachePath = Join-Path $cacheRoot $PluginName
+    Ensure-Dir $cacheRoot
+
+    $resolvedCodexHome = [System.IO.Path]::GetFullPath($CodexHome)
+    $resolvedCachePath = [System.IO.Path]::GetFullPath($cachePath)
+    if (-not $resolvedCachePath.StartsWith($resolvedCodexHome, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to update plugin cache outside Codex home: $resolvedCachePath"
+    }
+
+    if (Test-Path $cachePath) {
+        Remove-Item -LiteralPath $cachePath -Recurse -Force
+    }
+
+    Copy-Item -LiteralPath $PluginSource -Destination $cachePath -Recurse -Force
+    Write-Host "[+] Codex plugin cache: $MarketplaceName/$PluginName" -ForegroundColor Green
+}
+
+function Sync-CodexSkills {
+    param(
+        [string]$SkillsSource,
+        [string]$CommandsSource,
+        [string]$CodexHome
+    )
+
+    $skillsTarget = Join-Path $CodexHome "skills"
+    $commandsTarget = Join-Path $CodexHome "commands"
+    Ensure-Dir $skillsTarget
+    Ensure-Dir $commandsTarget
+
+    Get-ChildItem -Path $CommandsSource -Filter "*.md" -File -ErrorAction SilentlyContinue | ForEach-Object {
+        Deploy-File $_.FullName (Join-Path $commandsTarget $_.Name) "codex/commands/$($_.Name)"
+    }
+
+    Get-ChildItem -Path $SkillsSource -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+        $target = Join-Path $skillsTarget $_.Name
+        if (Test-Path $target) {
+            Remove-Item -LiteralPath $target -Recurse -Force
+        }
+        Copy-Item -LiteralPath $_.FullName -Destination $target -Recurse -Force
+        Write-Host "[+] Codex skill: $($_.Name)" -ForegroundColor Green
+    }
+}
+
+if (-not $CodexOnly) {
+    $missing = @()
+    if (-not (Get-Command jq -ErrorAction SilentlyContinue)) { $missing += "jq" }
+    if (-not (Get-Command bc -ErrorAction SilentlyContinue)) { $missing += "bc" }
+
+    if ($missing.Count -eq 0) {
+        Write-Host "[=] Optional shell statusline dependencies found (jq, bc)" -ForegroundColor DarkGray
+    } else {
+        Write-Host "[!] Optional shell statusline dependencies missing: $($missing -join ', ')" -ForegroundColor Yellow
+        if ($Platform -eq "Windows") {
+            Write-Host "    This is OK if you use ccstatusline. Install via winget/scoop/chocolatey only if you need statusline.sh."
         }
     }
-} else {
-    Write-Host "[!] 未检测到 npm，跳过 ccstatusline 安装" -ForegroundColor Yellow
-    Write-Host "    请先安装 Node.js，或后续通过 npx 自动下载"
+    Write-Host ""
+}
+
+Ensure-Dir $CodexDir
+
+$TplSrcDir = Join-Path $ScriptDir "templates"
+
+if (-not $CodexOnly) {
+    Ensure-Dir $ClaudeDir
+
+    Deploy-File (Join-Path $ScriptDir "CLAUDE.md") (Join-Path $ClaudeDir "CLAUDE.md") "CLAUDE.md"
+    Deploy-File (Join-Path $ScriptDir "settings.json") (Join-Path $ClaudeDir "settings.json") "settings.json"
+    Deploy-File (Join-Path $ScriptDir "statusline.sh") (Join-Path $ClaudeDir "statusline.sh") "statusline.sh"
+
+    $CmdSrcDir = Join-Path $ScriptDir "commands"
+    $CmdDstDir = Join-Path $ClaudeDir "commands"
+    Ensure-Dir $CmdDstDir
+    Get-ChildItem -Path $CmdSrcDir -Filter "*.md" -File -ErrorAction SilentlyContinue | ForEach-Object {
+        Deploy-File $_.FullName (Join-Path $CmdDstDir $_.Name) "commands/$($_.Name)"
+    }
+
+    $TplDstDir = Join-Path $ClaudeDir "templates"
+    Ensure-Dir $TplDstDir
+    Get-ChildItem -Path $TplSrcDir -File -ErrorAction SilentlyContinue | ForEach-Object {
+        Deploy-File $_.FullName (Join-Path $TplDstDir $_.Name) "templates/$($_.Name)"
+    }
+}
+
+$CodexTplDir = Join-Path $CodexDir "templates"
+Ensure-Dir $CodexTplDir
+Get-ChildItem -Path $TplSrcDir -File -ErrorAction SilentlyContinue | ForEach-Object {
+    Deploy-File $_.FullName (Join-Path $CodexTplDir $_.Name) "codex/templates/$($_.Name)"
+}
+
+$CodexPromptSrcDir = Join-Path $ScriptDir "codex\prompts"
+$CodexPromptsDir = Join-Path $CodexDir "prompts"
+Ensure-Dir $CodexPromptsDir
+Get-ChildItem -Path $CodexPromptSrcDir -Filter "*.md" -File -ErrorAction SilentlyContinue | ForEach-Object {
+    Deploy-File $_.FullName (Join-Path $CodexPromptsDir $_.Name) "codex/prompts/$($_.Name)"
+}
+
+$CodexPluginDir = Join-Path $ScriptDir "codex\plugins\claude-config-commands"
+Sync-CodexSkills `
+    (Join-Path $CodexPluginDir "skills") `
+    (Join-Path $CodexPluginDir "commands") `
+    $CodexDir
+
+Invoke-CodexMarketplaceRegistration (Join-Path $ScriptDir "codex")
+Sync-CodexPluginCache `
+    $CodexPluginDir `
+    $CodexDir `
+    "claude-config" `
+    "claude-config-commands"
+Enable-CodexPlugin (Join-Path $CodexDir "config.toml") "claude-config-commands@claude-config"
+
+if (-not $CodexOnly) {
+    Write-Host ""
+    $npmPath = Get-Command npm -ErrorAction SilentlyContinue
+    if ($npmPath) {
+        $installed = npm list -g ccstatusline 2>&1
+        if ($installed -match "ccstatusline@") {
+            $ver = ($installed | Select-String "ccstatusline@(.+)" | ForEach-Object { $_.Matches[0].Groups[1].Value } | Select-Object -First 1).Trim()
+            Write-Host "[=] ccstatusline installed (v$ver)" -ForegroundColor DarkGray
+        } else {
+            Write-Host "Installing ccstatusline ..."
+            try {
+                npm install -g ccstatusline 2>&1 | Out-Null
+                Write-Host "[+] ccstatusline" -ForegroundColor Green
+            } catch {
+                Write-Host "[!] ccstatusline install failed; settings.json can still use npx on first run" -ForegroundColor Yellow
+            }
+        }
+    } else {
+        Write-Host "[!] npm not found; skipped ccstatusline install" -ForegroundColor Yellow
+        Write-Host "    Install Node.js later if you want npm-managed ccstatusline."
+    }
 }
 
 Write-Host ""
-Write-Host "=== 部署完成 ===" -ForegroundColor Cyan
+Write-Host "=== Deploy complete ===" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "已部署的配置:"
-Write-Host "  CLAUDE.md        - 全局指令 (Git commit 规范、Devlog 开发日志规范)"
-Write-Host "  settings.json    - 状态栏、权限设置"
-Write-Host "  statusline.sh    - 自定义状态栏脚本 (备用)"
-Write-Host "  commands/        - 自定义命令 (gitpush 等)"
-Write-Host "  ccstatusline     - npm 状态栏工具"
+Write-Host "Installed:"
+if (-not $CodexOnly) {
+    Write-Host "  CLAUDE.md              -> $ClaudeDir"
+    Write-Host "  settings.json          -> $ClaudeDir"
+    Write-Host "  statusline.sh          -> $ClaudeDir"
+    Write-Host "  commands/*.md          -> $(Join-Path $ClaudeDir "commands")"
+    Write-Host "  templates/*            -> $(Join-Path $ClaudeDir "templates")"
+}
+Write-Host "  codex/templates/*      -> $(Join-Path $CodexDir "templates")"
+Write-Host "  codex/prompts/*.md     -> $(Join-Path $CodexDir "prompts")"
+Write-Host "  codex/commands/*.md    -> $(Join-Path $CodexDir "commands")"
+Write-Host "  codex/skills/*         -> $(Join-Path $CodexDir "skills")"
+Write-Host "  codex plugin skills    -> `$gitpush, `$deploy, `$deploy-init, ..."

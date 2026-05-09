@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ── 检测平台与 Claude 配置目录 ──
+# ── 检测平台与 Claude/Codex 配置目录 ──
 detect_platform() {
     case "$(uname -s)" in
         Linux*)
@@ -18,22 +18,27 @@ detect_platform() {
                 # WSL 中 $HOME 指向 Linux home，Claude Code 装在 Windows 侧
                 WIN_USER=$(cmd.exe /C "echo %USERNAME%" 2>/dev/null | tr -d '\r')
                 CLAUDE_DIR="/mnt/c/Users/${WIN_USER}/.claude"
+                CODEX_DIR="/mnt/c/Users/${WIN_USER}/.codex"
             else
                 PLATFORM="Linux"
                 CLAUDE_DIR="$HOME/.claude"
+                CODEX_DIR="$HOME/.codex"
             fi
             ;;
         Darwin*)
             PLATFORM="macOS"
             CLAUDE_DIR="$HOME/.claude"
+                CODEX_DIR="$HOME/.codex"
             ;;
         MINGW*|MSYS*|CYGWIN*)
             PLATFORM="Windows (Git Bash)"
             CLAUDE_DIR="$HOME/.claude"
+                CODEX_DIR="$HOME/.codex"
             ;;
         *)
             PLATFORM="Unknown ($(uname -s))"
             CLAUDE_DIR="$HOME/.claude"
+                CODEX_DIR="$HOME/.codex"
             ;;
     esac
 }
@@ -43,7 +48,8 @@ detect_platform
 echo "=== Claude Code 配置部署 ==="
 echo "平台:   $PLATFORM"
 echo "源目录: $SCRIPT_DIR"
-echo "目标:   $CLAUDE_DIR"
+echo "Claude目标: $CLAUDE_DIR"
+echo "Codex目标:  $CODEX_DIR"
 echo ""
 
 # ── 检查并安装系统依赖 ──
@@ -105,6 +111,10 @@ if [ ! -d "$CLAUDE_DIR" ]; then
     echo "创建 $CLAUDE_DIR ..."
     mkdir -p "$CLAUDE_DIR"
 fi
+if [ ! -d "$CODEX_DIR" ]; then
+    echo "创建 $CODEX_DIR ..."
+    mkdir -p "$CODEX_DIR"
+fi
 
 # ── 部署单个文件的通用函数 ──
 deploy_file() {
@@ -122,6 +132,85 @@ deploy_file() {
     fi
     cp "$src" "$dst"
     echo "[+] $label"
+}
+
+enable_codex_plugin() {
+    local config_file="$CODEX_DIR/config.toml"
+    local plugin_ref='claude-config-commands@claude-config'
+    local section="[plugins.\"$plugin_ref\"]"
+
+    mkdir -p "$CODEX_DIR"
+    touch "$config_file"
+
+    if grep -Fqx "$section" "$config_file"; then
+        awk -v section="$section" '
+            BEGIN { in_section = 0; done = 0 }
+            $0 == section { in_section = 1; print; next }
+            in_section && /^\[/ {
+                if (!done) { print "enabled = true"; done = 1 }
+                in_section = 0
+            }
+            in_section && /^[[:space:]]*enabled[[:space:]]*=/ {
+                if (!done) { print "enabled = true"; done = 1 }
+                next
+            }
+            { print }
+            END {
+                if (in_section && !done) print "enabled = true"
+            }
+        ' "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
+    else
+        printf '\n%s\nenabled = true\n' "$section" >> "$config_file"
+    fi
+
+    echo "[+] Codex plugin enabled: $plugin_ref"
+}
+
+sync_codex_plugin_cache() {
+    local plugin_source="$SCRIPT_DIR/codex/plugins/claude-config-commands"
+    local cache_root="$CODEX_DIR/plugins/cache/claude-config"
+    local cache_path="$cache_root/claude-config-commands"
+
+    if [ ! -d "$plugin_source" ]; then
+        echo "[!] Missing Codex plugin source: $plugin_source"
+        return
+    fi
+
+    mkdir -p "$cache_root"
+    case "$cache_path" in
+        "$CODEX_DIR"/*) ;;
+        *)
+            echo "[!] Refusing to update plugin cache outside Codex home: $cache_path"
+            return 1
+            ;;
+    esac
+
+    rm -rf "$cache_path"
+    cp -R "$plugin_source" "$cache_path"
+    echo "[+] Codex plugin cache: claude-config/claude-config-commands"
+}
+
+sync_codex_skills() {
+    local skills_source="$SCRIPT_DIR/codex/plugins/claude-config-commands/skills"
+    local commands_source="$SCRIPT_DIR/codex/plugins/claude-config-commands/commands"
+    local skills_target="$CODEX_DIR/skills"
+    local commands_target="$CODEX_DIR/commands"
+
+    mkdir -p "$skills_target" "$commands_target"
+
+    for cmd_file in "$commands_source"/*.md; do
+        [ -f "$cmd_file" ] || continue
+        filename="$(basename "$cmd_file")"
+        deploy_file "$cmd_file" "$commands_target/$filename" "codex/commands/$filename"
+    done
+
+    for skill_dir in "$skills_source"/*; do
+        [ -d "$skill_dir" ] || continue
+        skill_name="$(basename "$skill_dir")"
+        rm -rf "$skills_target/$skill_name"
+        cp -R "$skill_dir" "$skills_target/$skill_name"
+        echo "[+] Codex skill: $skill_name"
+    done
 }
 
 # ── 部署配置文件 ──
@@ -145,6 +234,40 @@ for tpl_file in "$SCRIPT_DIR/templates"/*; do
     deploy_file "$tpl_file" "$CLAUDE_DIR/templates/$filename" "templates/$filename"
 done
 
+# ── 部署 Codex 兼容配置 ──
+mkdir -p "$CODEX_DIR/templates"
+for tpl_file in "$SCRIPT_DIR/templates"/*; do
+    [ -f "$tpl_file" ] || continue
+    filename="$(basename "$tpl_file")"
+    deploy_file "$tpl_file" "$CODEX_DIR/templates/$filename" "codex/templates/$filename"
+done
+
+mkdir -p "$CODEX_DIR/prompts"
+for prompt_file in "$SCRIPT_DIR/codex/prompts"/*.md; do
+    [ -f "$prompt_file" ] || continue
+    filename="$(basename "$prompt_file")"
+    deploy_file "$prompt_file" "$CODEX_DIR/prompts/$filename" "codex/prompts/$filename"
+done
+
+sync_codex_skills
+
+if command -v codex > /dev/null 2>&1; then
+    echo ""
+    echo "注册 Codex 本地 marketplace ..."
+    if codex plugin marketplace add "$SCRIPT_DIR/codex" > /dev/null 2>&1; then
+        echo "[+] Codex marketplace: claude-config"
+    elif codex plugin marketplace upgrade claude-config > /dev/null 2>&1; then
+        echo "[=] Codex marketplace: claude-config 已更新"
+    else
+        echo "[!] Codex marketplace 注册失败，请手动运行: codex plugin marketplace add \"$SCRIPT_DIR/codex\""
+    fi
+else
+    echo "[!] 未检测到 codex CLI，跳过 Codex marketplace 注册"
+    echo "    安装 Codex 后可手动运行: codex plugin marketplace add \"$SCRIPT_DIR/codex\""
+fi
+sync_codex_plugin_cache
+enable_codex_plugin
+
 # ── 安装 ccstatusline ──
 echo ""
 if command -v npm > /dev/null 2>&1; then
@@ -167,5 +290,12 @@ echo "  CLAUDE.md        - 全局指令 (Git commit 规范、Devlog 开发日志
 echo "  settings.json    - 状态栏、权限设置"
 echo "  statusline.sh    - 自定义状态栏脚本 (备用)"
 echo "  commands/        - 自定义命令 (gitpush, deploy, deploy-init 等)"
-echo "  templates/       - 部署模板 (server.secret, run.sh)"
+echo "  templates/       - Claude 部署模板 (server.secret, run.sh)"
+echo "  codex/           - Codex 本地 marketplace + 兼容命令"
+echo "  ~/.codex/templates - Codex 部署模板"
+echo "  ~/.codex/prompts   - Codex prompt 兼容文件"
+echo "  ~/.codex/commands  - Codex skill 引用的 workflow 正文"
+echo "  ~/.codex/skills    - Codex 原生 skill 入口"
+echo "  ~/.codex/plugins/cache/claude-config/claude-config-commands - Codex plugin cache"
+echo '  codex plugin skills - $gitpush, $deploy, $deploy-init, ...'
 echo "  ccstatusline     - npm 状态栏工具"

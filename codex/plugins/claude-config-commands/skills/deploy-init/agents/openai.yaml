@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deploy Init"
+  short_description: "Create deploy files"
+  default_prompt: "Use $deploy-init to create .server.secret, run.sh, and gitignore entries."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deploy"
+  short_description: "Deploy to remote server"
+  default_prompt: "Use $deploy to deploy the current project to its configured server."
