@@ -9,7 +9,7 @@ description: 初始化远程部署配置文件
 1. 检查项目根目录是否已存在 `.server.secret` 和 `run.sh`，如已存在则提示用户并跳过对应文件
 
 2. **创建 `.server.secret`**（如不存在）：
-   - 从 `~/.codex/templates/server.secret.template`（或 `~/.claude/templates/server.secret.template`、`~/projects/claude-config/templates/server.secret.template`）读取模板
+   - 从 `~/.codex/templates/server.secret.template`（或本仓库 `templates/server.secret.template`）读取模板
    - 如果模板也不存在，使用内置的默认格式
    - 询问用户以下配置项：
      - 服务器 IP 地址
@@ -19,7 +19,7 @@ description: 初始化远程部署配置文件
    - 提示用户还需要手动粘贴 SSH 私钥到文件中
 
 3. **创建 `run.sh`**（如不存在）：
-   - 从 `~/.codex/templates/run.sh.template`（或 `~/.claude/templates/run.sh.template`、`~/projects/claude-config/templates/run.sh.template`）读取模板
+   - 从 `~/.codex/templates/run.sh.template`（或本仓库 `templates/run.sh.template`）读取模板
    - 如果模板也不存在，使用内置的默认脚本
    - 询问用户以下配置项：
      - 应用入口文件名（默认 `app.py`）

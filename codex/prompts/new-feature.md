@@ -62,7 +62,7 @@ argument-hint: [需求内容]
 
 ## 阶段八：提交
 
-1. 使用 /gitpush 提交代码
+1. 使用 `$gitpush` 提交代码
 
 ---
 

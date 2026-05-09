@@ -12,7 +12,7 @@ description: 试运行部署并切换服务器免费模型
 
 ## 部署流程
 
-执行与 `/deploy` 完全相同的前置检查、解析 `.server.secret`、部署流程（git pull + run.sh restart），但在 `git pull` 之后、`run.sh restart` 之前，增加一步：
+执行与 `$deploy` 完全相同的前置检查、解析 `.server.secret`、部署流程（git pull + run.sh restart），但在 `git pull` 之后、`run.sh restart` 之前，增加一步：
 
 ### 切换模型
 
@@ -28,4 +28,4 @@ sed -i 's/^DEFAULT_MODEL=.*/DEFAULT_MODEL=stepfun\/step-3.5-flash:free/' <部署
 
 部署成功后，提醒用户：
 - 当前服务器使用的是**免费模型**（试运行模式）
-- 功能验证完成后，使用 `/deploy` 正式部署即可自动切回生产模型
+- 功能验证完成后，使用 `$deploy` 正式部署即可自动切回生产模型
