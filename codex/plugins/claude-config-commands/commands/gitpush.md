@@ -2,7 +2,9 @@
 description: 提交并推送当前 Git 改动
 ---
 
-执行 Git 提交并推送流程：
+执行 Git 提交并推送流程。
+
+全局约定：在所有 Codex 项目里，用户说“提交”或 “commit” 时，默认表示 `git commit` 后继续 `git push` 到当前分支对应远端；只有用户明确说“只提交”“本地提交”“不要 push”等，才只做本地提交。
 
 1. 检查当前 git 状态（使用 `git status`）
 2. 查看所有更改（使用 `git diff` 和 `git diff --staged`）
