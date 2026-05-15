@@ -20,6 +20,8 @@ claude-config/
 │   ├── server.secret.template  # 服务器连接信息模板
 │   └── run.sh.template         # 服务管理脚本模板
 ├── .gitattributes         # 跨平台换行符控制（.sh 强制 LF）
+├── install-ubuntu.sh      # 裸 Ubuntu 拉取仓库入口
+├── bootstrap.sh           # Ubuntu 一体化安装 + 配置同步入口
 ├── deploy.sh              # 部署脚本 - Linux / macOS / Git Bash / WSL
 ├── deploy.ps1             # 部署脚本 - PowerShell (Windows / macOS / Linux)
 ├── deploy.bat             # 部署入口 - Windows 双击运行
@@ -28,9 +30,37 @@ claude-config/
 
 ## 快速部署
 
-### 前置条件
+### 全新 Ubuntu 一体化安装
 
-- 已安装 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)（`npm install -g @anthropic-ai/claude-code`）
+在原生 Ubuntu 裸系统上，可用一个命令安装最小拉取依赖、克隆本仓库并执行完整初始化：
+
+```bash
+sudo apt-get update && sudo apt-get install -y ca-certificates curl && curl -fsSL https://raw.githubusercontent.com/Chirs-ai/claude-config/main/install-ubuntu.sh -o /tmp/claude-config-install-ubuntu.sh && bash /tmp/claude-config-install-ubuntu.sh
+```
+
+如果已经克隆了本仓库，可在仓库目录直接运行：
+
+```bash
+bash bootstrap.sh
+```
+
+`install-ubuntu.sh` 和 `bootstrap.sh` 只会在原生 Ubuntu 上执行软件安装，内容包括：
+
+- 通过 apt 安装基础工具：`curl`、`git`、`jq`、`bc`、`gnupg` 等
+- 通过 Anthropic 官方 apt 仓库安装 Claude Code CLI
+- 通过 NodeSource 安装 Node.js/npm
+- 通过 npm 安装 Codex CLI：`@openai/codex`
+- 通过 npm 安装状态栏工具：`ccstatusline`
+- 最后调用 `deploy.sh` 同步 `~/.claude/` 和 `~/.codex/` 配置
+
+WSL、macOS、Windows、非 Ubuntu Linux 不会执行这组软件安装，只会继续走配置同步。
+
+> 账户登录凭证不会同步。安装完成后仍需分别运行 `claude` 和 `codex` 完成交互式登录。
+
+### 配置同步前置条件
+
+- 已安装 [Claude Code CLI](https://code.claude.com/docs/zh-CN/setup)
+- 已安装 [Codex CLI](https://developers.openai.com/codex/cli)（`npm i -g @openai/codex`）
 - Git
 - Node.js / npm（部署脚本会自动安装 `ccstatusline`）
 
@@ -50,14 +80,15 @@ claude-config/
 ### 各平台部署方式
 
 ```bash
-# 1. 克隆仓库（所有平台通用）
-git clone <repo-url> claude-config
+# 1. 克隆仓库（全新 Ubuntu 可直接使用上一节的一体化命令）
+git clone https://github.com/Chirs-ai/claude-config.git claude-config
 cd claude-config
 ```
 
 | 平台 | 部署命令 |
 |------|---------|
-| **Ubuntu / Linux** | `bash deploy.sh` |
+| **全新原生 Ubuntu** | `bash bootstrap.sh` |
+| **已安装 CLI 的 Ubuntu / Linux** | `bash deploy.sh` |
 | **macOS** | `bash deploy.sh` |
 | **Windows (Git Bash)** | `bash deploy.sh` |
 | **Windows (PowerShell)** | `powershell -ExecutionPolicy Bypass -File deploy.ps1` |
