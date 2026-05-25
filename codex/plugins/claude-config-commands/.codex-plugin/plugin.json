@@ -18,7 +18,7 @@
   "interface": {
     "displayName": "Claude Config Commands",
     "shortDescription": "Personal Codex skills for Git, deploy, audit, devlog, and writing workflows.",
-    "longDescription": "Codex-native skills for the claude-config workflows in this repository: Git push, remote deploy, deploy initialization, dry deploys, regression checks, audits, devlog capture, feature work, and Socratic writing.",
+    "longDescription": "Codex-native skills for the claude-config workflows in this repository: Git push, remote deploy, deploy initialization, dry deploys, regression checks, audits, devlog capture, plan-devlog-build implementation flow, feature work, and Socratic writing.",
     "developerName": "Claude Config",
     "category": "Coding",
     "capabilities": [
@@ -32,6 +32,7 @@
     "defaultPrompt": [
       "Use $gitpush to commit and push the current project.",
       "Use $deploy-init then $deploy to set up remote deployment.",
+      "Use $plan-devlog-build to write a plan to devlog, self-review it, and implement it.",
       "Use $regression-check to verify recent changes."
     ],
     "brandColor": "#2563EB",

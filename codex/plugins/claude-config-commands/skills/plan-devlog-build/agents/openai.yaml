@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Devlog Build"
+  short_description: "Plan, log, review, then build"
+  default_prompt: "Use $plan-devlog-build to turn the current context into a devlog plan, self-review it, and implement it."

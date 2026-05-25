@@ -15,6 +15,7 @@ claude-config/
 │   ├── deploy-init.md     #   /deploy-init - 初始化项目部署配置
 │   ├── regression-check.md #  /regression-check - 回归验证
 │   ├── save-devlog.md     #   /save-devlog - 保存开发日志
+│   ├── plan-devlog-build.md # /plan-devlog-build - 方案沉淀、记录、自评、实施
 │   └── socratic-writing.md #  /socratic-writing - 苏格拉底式文章创作
 ├── templates/             # 部署模板（部署到 ~/.claude/templates/）
 │   ├── server.secret.template  # 服务器连接信息模板
@@ -151,6 +152,7 @@ $deploy-init
 $deploy
 $audit
 $regression-check
+$plan-devlog-build
 $socratic-writing
 ```
 
@@ -208,6 +210,18 @@ Codex 版 workflow 正文与 Claude 版保持同一语义；区别是 Codex 当�
 1. `git status` + `git diff` 检查变更
 2. 参考项目历史风格生成 commit message
 3. `git add -A` → `git commit` → `git push`
+
+#### /plan-devlog-build — 方案记录、自评、实施
+
+在 Claude Code 中输入 `/plan-devlog-build` 触发，Codex 中使用 `$plan-devlog-build` 触发。适合已经有方案、想法或上下文，希望先整理成正式 devlog，再自评并实施的工作流。
+
+**工作流程：**
+
+```
+上下文归纳 → 详细方案 → 写入 devlog → 方案自评 → 实施 → 自检与验证
+```
+
+默认自评通过后直接实施；遇到破坏性操作、生产操作、数据迁移、删除数据、凭据变更或无法自证的高风险点时，会暂停并请求确认。默认不提交代码，需要提交时再使用 `/gitpush` 或 `$gitpush`。
 
 #### /deploy — 一键部署到远程服务器
 
