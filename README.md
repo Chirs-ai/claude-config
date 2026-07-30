@@ -16,6 +16,7 @@ claude-config/
 │   ├── regression-check.md #  /regression-check - 回归验证
 │   ├── save-devlog.md     #   /save-devlog - 保存开发日志
 │   ├── plan-devlog-build.md # /plan-devlog-build - 方案沉淀、记录、自评、实施
+│   ├── guardrail-init.md  #   /guardrail-init - 仓库护栏一键初始化（探查→四件套草稿→装骨架→平台门禁→自检报告；模板源 = team-quality-config）
 │   └── socratic-writing.md #  /socratic-writing - 苏格拉底式文章创作
 ├── templates/             # 部署模板（部署到 ~/.claude/templates/）
 │   ├── server.secret.template  # 服务器连接信息模板
